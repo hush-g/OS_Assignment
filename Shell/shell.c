@@ -6,6 +6,7 @@
 #include<sys/wait.h>
 #include<readline/readline.h>
 #include<readline/history.h>
+#include <errno.h>
 
 #define MAX_COMMANDS 20
 #define MAX_COMMAND_LENGTH 1024
@@ -19,11 +20,12 @@ void processArguments(char *command, char *args[MAX_ARGS]) {
         token = strtok(NULL, " ");
     }
     args[arg_count] = NULL; // Terminate the argument list
+
 }
 
 int executeSystemCommand(char *commands[][MAX_COMMAND_LENGTH]) {
     char *args[MAX_ARGS];
-    processArguments(commands[0][0], args);
+    processArguments(*commands[0], args);
 
     if (strcmp(args[0], "cd") == 0) {
         if (args[1] == NULL) {
@@ -32,10 +34,30 @@ int executeSystemCommand(char *commands[][MAX_COMMAND_LENGTH]) {
             chdir(args[1]);
         }
         return 1;
-    } else if (strcmp(args[0], "ls") == 0 || strcmp(args[0], "echo") == 0) {
-        execvp(args[0], args);
-    } else if(strcmp(args[0], "cat") == 0) {
-        execvp(args[0], args);
+    } else if (strcmp(args[0], "ls") == 0 || strcmp(args[0], "echo") == 0 || strcmp(args[0], "cat") == 0) {
+        if (strcmp(args[0], "cat") == 0 && args[1] == NULL) {
+            fprintf(stderr, "cat: Missing argument\n");
+            return 1;
+        }
+
+        // Forking a child
+        pid_t pid = fork();
+        if(pid < 0) {
+            printf("\nFailed forking child..");
+            return 0;
+        } else if(pid == 0) {
+            if (execvp(args[0], args) == -1) {
+                perror("execvp");
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            // waiting for child to terminate
+            wait(NULL);
+            if (strcmp(args[0], "cat") == 0) {
+                printf("\n");
+            }
+            return 1;
+        }
         printf("\n");
     } else if (strcmp(args[0], "exit") == 0) {
         exit(0);
@@ -56,7 +78,7 @@ void executeCommand(char *commands[][1024]) {
     // Forking a child
     pid_t pid = fork();
     char **args = commands[0];
-    if(pid == -1) {
+    if(pid < 0) {
         printf("\nFailed forking child..");
         return;
     } else if(pid == 0) {
@@ -70,6 +92,7 @@ void executeCommand(char *commands[][1024]) {
         return;
     }
 }
+
 void executePipedCommands(char *commands[][1024], int num_commands) {
     printf("exec pipe");
     int pipes[num_commands - 1][2];
@@ -166,7 +189,6 @@ int main() {
 	    } else {
 		    isPipe = 1;
 	    }
-        printf("pipe = %d\n", isPipe);
         if(executeSystemCommand(commands) == 0) {
             if(isPipe) {
                 executePipedCommands(commands, numCommands);
@@ -174,7 +196,6 @@ int main() {
                 executeCommand(commands);
             }
         }
-        printf("here");
     }
     printf("**%d***", count);
     return 0;
