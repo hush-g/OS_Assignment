@@ -17,7 +17,7 @@
 // Greeting shell during startup
 void init_shell()
 {
-	clear();
+	// clear();
 	printf("\n\n\n\n******************"
 		"************************");
 	printf("\n\n\n\t****MY SHELL****");
@@ -34,11 +34,11 @@ void init_shell()
 // Function to take input
 int takeInput(char* str)
 {
-	char* buf;
+	char buf[1024];
 
-	buf = readline("\n>>> ");
+	fgets(buf, sizeof(buf), stdin);
 	if (strlen(buf) != 0) {
-		add_history(buf);
+		// add_history(buf);
 		strcpy(str, buf);
 		return 0;
 	} else {
@@ -60,14 +60,16 @@ void execArgs(char** parsed)
 	// Forking a child
 	pid_t pid = fork();
 
-	if (pid == -1) {
+	if (pid < 0) {
 		printf("\nFailed forking child..");
 		return;
 	} else if (pid == 0) {
-		if (execvp(parsed[0], parsed) < 0) {
+		printf("%s\n ", parsed[0]);
+		if (execvp(parsed[0], parsed) == -1) {
 			printf("\nCould not execute command..");
+			perror("execvp");
+            exit(EXIT_FAILURE);
 		}
-		exit(0);
 	} else {
 		// waiting for child to terminate
 		wait(NULL);
@@ -250,7 +252,7 @@ int main()
 	char inputString[MAXCOM], *parsedArgs[MAXLIST];
 	char* parsedArgsPiped[MAXLIST];
 	int execFlag = 0;
-	// init_shell();
+	init_shell();
 
 	while (1) {
 		// print shell line
