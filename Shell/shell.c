@@ -11,6 +11,28 @@
 #define MAX_COMMANDS 20
 #define MAX_COMMAND_LENGTH 1024
 #define MAX_ARGS 64
+#define MAX_HISTORY_SIZE 250
+
+char history[MAX_HISTORY_SIZE][1024];
+int historyCount = 0;
+
+void printHistory() {
+    for (int i = 0; i < historyCount; i++) {
+        printf("%d: %s\n", i + 1, history[i]);
+    }
+}
+
+void addHistory(char *command) {
+    if (historyCount < MAX_HISTORY_SIZE) {
+        strcpy(history[historyCount], command);
+        historyCount++;
+    } else {
+        for (int i = 1; i < historyCount; i++) {
+            strcpy(history[i - 1], history[i]);
+        }
+        strcpy(history[historyCount - 1], command);
+    }
+}
 
 void processArguments(char *command, char *args[MAX_ARGS]) {
     int arg_count = 0;
@@ -32,6 +54,8 @@ void executeCommand(char *args[MAX_ARGS]) {
         }
     } else if (strcmp(args[0], "exit") == 0) {
         exit(0);
+    } else if(strcmp(args[0], "history") == 0) {
+        printHistory();
     } else {
         pid_t pid = fork();
         if(pid < 0) {
@@ -111,8 +135,6 @@ int main() {
     char *username = getenv("USER");
     int count = 0;
 
-    // using_history();
-
     while (1) {  
         count++;
         char currentDirectory[1024];
@@ -125,7 +147,7 @@ int main() {
         fgets(inputString, sizeof(inputString), stdin);
         inputString[strcspn(inputString, "\n")] = '\0';
 
-        // add_history(inputString);
+        addHistory(inputString);
 
         char *token = strtok(inputString, "|");
         while (token != NULL && numCommands < MAX_COMMANDS) {
