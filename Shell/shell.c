@@ -9,8 +9,68 @@
 #include<errno.h>
 
 #define MAX_COMMANDS 20
-#define MAX_COMMAND_LENGTH 1024
+#define MAX_COMMAND_LENGTH 2048
 #define MAX_ARGS 64
+
+typedef struct {
+    char **data;
+    size_t size;
+    size_t capacity;
+} Vector;
+
+void init(Vector *vector, size_t initialCapacity) {
+    vector->data = (char **)malloc(initialCapacity * sizeof(char *));
+    vector->size = 0;
+    vector->capacity = initialCapacity;
+}
+
+void addHistory(Vector *vector, char *command) {
+    if (vector->size == vector->capacity) {
+        vector->capacity *= 2;
+        vector->data = (char **)realloc(vector->data, vector->capacity * sizeof(char *));
+    }
+    
+    vector->data[vector->size] = strdup(command);
+    vector->size++;
+}
+
+void clearHistory(Vector *vector) {
+    for (size_t i = 0; i < vector->size; i++) {
+        free(vector->data[i]);
+    }
+    free(vector->data);
+    vector->data = NULL;
+    vector->size = 0;
+    vector->capacity = 0;
+}
+
+void printHistory(Vector *vector,  size_t n) {
+    if (n > vector->size) {
+        n = vector->size;
+    }
+    
+    for (size_t i = vector->size - n; i < vector->size; i++) {
+        printf("%s\n", vector->data[i]);
+    }
+}
+
+int getNum(char *arg) {
+    char *endptr;
+    long num = strtol(arg, &endptr, 10);
+
+    if (endptr == arg) {
+        printf("Input incorrect: Not a valid integer\n");
+        return -1;
+    } else if (*endptr != '\0') {
+        printf("Input incorrect: Invalid character: %c\n", *endptr);
+        return -1;
+    }
+    if(num < 0) {
+        printf("Input incorrect: Negative number\n");
+        return -1;
+    }
+    return (int)num;
+}
 
 void processArguments(char *command, char *args[MAX_ARGS]) {
     int arg_count = 0;
@@ -30,8 +90,6 @@ void executeCommand(char *args[MAX_ARGS]) {
         } else {
             chdir(args[1]);
         }
-    } else if (strcmp(args[0], "exit") == 0) {
-        exit(0);
     } else {
         pid_t pid = fork();
         if(pid < 0) {
@@ -50,7 +108,7 @@ void executeCommand(char *args[MAX_ARGS]) {
     }
 }
 
-void executePipedCommands(char *commands[][1024], int num_commands) {
+void executePipedCommands(char *commands[][MAX_COMMAND_LENGTH], int num_commands) {
     int pipes[num_commands - 1][2];
     pid_t pids[num_commands];
 
@@ -109,13 +167,12 @@ void executePipedCommands(char *commands[][1024], int num_commands) {
 
 int main() {
     char *username = getenv("USER");
-    int count = 0;
 
-    // using_history();
+    Vector history;
+    init(&history, 10);
 
     while (1) {  
-        count++;
-        char currentDirectory[1024];
+        char currentDirectory[MAX_COMMAND_LENGTH];
 	    getcwd(currentDirectory, sizeof(currentDirectory));
 	    printf("%s:%s MTL 458 > ", username, currentDirectory);
 
@@ -125,7 +182,11 @@ int main() {
         fgets(inputString, sizeof(inputString), stdin);
         inputString[strcspn(inputString, "\n")] = '\0';
 
-        // add_history(inputString);
+        if(inputString[0] == '\0') {
+            continue;
+        }
+
+        addHistory(&history, inputString);        
 
         char *token = strtok(inputString, "|");
         while (token != NULL && numCommands < MAX_COMMANDS) {
@@ -145,8 +206,17 @@ int main() {
         } else {
             char *args[MAX_ARGS];
             processArguments(*commands[0], args);
-            executeCommand(args);
+            if(strcmp(args[0], "history") == 0) {
+                int num = getNum(args[1]);
+                if(num >= 0) printHistory(&history, num);
+            } else if (strcmp(args[0], "exit") == 0) {
+                clearHistory(&history);
+                exit(0);
+            } else {
+                executeCommand(args);
+            }
         }
     }
+    clearHistory(&history);
     return 0;
 }
