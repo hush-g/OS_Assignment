@@ -154,20 +154,15 @@ void executePipedCommands(Vector *history, char *commands[][MAX_COMMAND_LENGTH],
             }
             char *args[MAX_ARGS];
             processArguments(*commands[i], args);
-                        if(strcmp(args[0], "history") == 0) {
+            if(strcmp(args[0], "history") == 0) {
                 int num = getNum(args[1]);
                 if(num >= 0) {
                     printHistory(history, num);
-                    FILE *writePipe = fdopen(pipes[i][1], "w");
-                    if (writePipe == NULL) {
-                        perror("fdopen");
-                        exit(EXIT_FAILURE);
-                    }
                     char **historyData = getHistory(history, num);
                     for (int k = 0; k < num; k++) {
-                        fprintf(writePipe, "%s\n", historyData[k]);
+                        write(STDOUT_FILENO, historyData[k], strlen(historyData[k]));
+                        write(STDOUT_FILENO, "\n", 1);
                     }
-                    fclose(writePipe);
                 }
             } else if (strcmp(args[0], "exit") == 0) {
                 clearHistory(history);
