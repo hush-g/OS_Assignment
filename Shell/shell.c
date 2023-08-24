@@ -4,8 +4,6 @@
 #include<unistd.h>
 #include<sys/types.h>
 #include<sys/wait.h>
-#include<readline/readline.h>
-#include<readline/history.h>
 #include<errno.h>
 
 #define MAX_COMMANDS 20
@@ -48,10 +46,21 @@ void printHistory(Vector *vector,  size_t n) {
     if (n > vector->size) {
         n = vector->size;
     }
-    
+    int counter = 1;
     for (size_t i = vector->size - n; i < vector->size; i++) {
-        printf("%s\n", vector->data[i]);
+        printf("%d. %s\n", counter++, vector->data[i]);
     }
+}
+
+char ** getHistory(Vector *vector, size_t n) {
+    if (n > vector->size) {
+        n = vector->size;
+    }
+    char **history = (char **)malloc(n * sizeof(char *));
+    for (size_t i = vector->size - n; i < vector->size; i++) {
+        history[i] = vector->data[i];
+    }
+    return history;
 }
 
 int getNum(char *arg) {
@@ -88,7 +97,16 @@ void executeCommand(char *args[MAX_ARGS]) {
         if (args[1] == NULL) {
             fprintf(stderr, "cd: Missing argument\n");
         } else {
-            chdir(args[1]);
+            if (strcmp(args[1], "~") == 0) {
+                const char *home_dir = getenv("HOME");
+                if (home_dir != NULL) {
+                    chdir(home_dir);
+                } else {
+                    fprintf(stderr, "cd: Failed to get home directory\n");
+                }
+            } else {
+                chdir(args[1]);
+            }
         }
     } else {
         pid_t pid = fork();
@@ -108,37 +126,52 @@ void executeCommand(char *args[MAX_ARGS]) {
     }
 }
 
-void executePipedCommands(char *commands[][MAX_COMMAND_LENGTH], int num_commands) {
-    int pipes[num_commands - 1][2];
-    pid_t pids[num_commands];
+void executePipedCommands(Vector *history, char *commands[][MAX_COMMAND_LENGTH], int numCommands) {
+    int pipes[numCommands - 1][2];
+    pid_t pids[numCommands];
 
-    for (int i = 0; i < num_commands - 1; i++) {
+    for(int i = 0; i < numCommands - 1; i++) {
         if (pipe(pipes[i]) == -1) {
             perror("pipe");
             return;
         }
     }
 
-    for (int i = 0; i < num_commands; i++) {
+    for (int i = 0; i < numCommands; i++) {
         pid_t pid = fork();
 
         if (pid == 0) {
-            if (i < num_commands - 1) {
+            if (i < numCommands - 1) {
                 dup2(pipes[i][1], STDOUT_FILENO);
             }
             if (i > 0) {
                 dup2(pipes[i - 1][0], STDIN_FILENO);
             }
 
-            for (int j = 0; j < num_commands - 1; j++) {
+            for (int j = 0; j < numCommands - 1; j++) {
                 close(pipes[j][0]);
                 close(pipes[j][1]);
             }
             char *args[MAX_ARGS];
             processArguments(*commands[i], args);
-            execvp(args[0], args);
-            perror("execvp");
-            exit(EXIT_FAILURE);
+            if(strcmp(args[0], "history") == 0) {
+                int num = getNum(args[1]);
+                if(num >= 0) {
+                    printHistory(history, num);
+                    char **historyData = getHistory(history, num);
+                    for (int k = 0; k < num; k++) {
+                        write(STDOUT_FILENO, historyData[k], strlen(historyData[k]));
+                        write(STDOUT_FILENO, "\n", 1);
+                    }
+                }
+            } else if (strcmp(args[0], "exit") == 0) {
+                clearHistory(history);
+                exit(0);
+            } else {
+                execvp(args[0], args);
+                perror("execvp");
+                exit(EXIT_FAILURE);
+            }
         } else if (pid > 0) {
             pids[i] = pid;
         } else {
@@ -146,7 +179,7 @@ void executePipedCommands(char *commands[][MAX_COMMAND_LENGTH], int num_commands
             return;
         }
 
-        if (i < num_commands - 1) {
+        if (i < numCommands - 1) {
             close(pipes[i][1]);
         }
         if (i > 0) {
@@ -154,12 +187,12 @@ void executePipedCommands(char *commands[][MAX_COMMAND_LENGTH], int num_commands
         }
     }
 
-    for (int i = 0; i < num_commands - 1; i++) {
+    for (int i = 0; i < numCommands - 1; i++) {
         close(pipes[i][0]);
         close(pipes[i][1]);
     }
 
-    for (int i = 0; i < num_commands; i++) {
+    for (int i = 0; i < numCommands; i++) {
         int status;
         waitpid(pids[i], &status, 0);
     }
@@ -202,7 +235,7 @@ int main() {
 		    isPipe = 1;
 	    }
         if(isPipe) {
-            executePipedCommands(commands, numCommands);
+            executePipedCommands(&history, commands, numCommands);
         } else {
             char *args[MAX_ARGS];
             processArguments(*commands[0], args);
