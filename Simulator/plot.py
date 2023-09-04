@@ -2,10 +2,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from collections import defaultdict
 import plotly.express as px
+import os
 
 # Function to parse the data and organize it into a dictionary
 def parse_data(filename):
-    strategies = ["FCFS", "Round Robin", "Shortest Job First", "Shortest Remaining Time First", "Multi-level Feedback Queue"]
+    strategies = ["FCFS", "RR", "SJF", "SRTF", "MLFQ"]
     data = defaultdict(list)
     data2 = defaultdict(list)
     temp = 0
@@ -44,7 +45,7 @@ def parse_data(filename):
 
 
 # Function to plot Gantt chart for a given strategy
-def plot_gantt_chart(data):
+def plot_gantt_chart(data, output_folder):
     for strategy, values in data.items():
         gantt_chart = values["Gantt Chart"]
         gantt_chart = gantt_chart[0]
@@ -66,15 +67,14 @@ def plot_gantt_chart(data):
         ax.set_xlabel('Timeline')
         ax.set_ylabel('Jobs')
         ax.set_title('Job Timeline')
-        plt.show()
 
-        # print(df)
-        # fig = px.timeline(df, x_start="startTime", x_end="endTime", y="jobName", color="jobName",title=f'Gantt Chart - {strategy}')
-        # fig.update_yaxes(autorange = "reversed")  # Set the order of y-axis labels
-        # fig.show()
+        # Save the plot to the specified folder
+        plot_filename = os.path.join(output_folder, f'{strategy}_gantt_chart.png')
+        plt.savefig(plot_filename)
+        plt.close()  # Close the current plot to release memory
 
 # Function to calculate and plot average metrics
-def plot_metrics(data):
+def plot_metrics(data, output_folder):
     avg_response_times = {}
     avg_turnaround_times = {}
     
@@ -88,17 +88,27 @@ def plot_metrics(data):
     plt.bar(avg_response_times.keys(), avg_response_times.values(), color='g')
     plt.ylabel('Average Response Time')
     plt.ylim(min(avg_response_times.values()) - 5, max(avg_response_times.values()) + 5)
-    plt.show()
+    
+    # Save the plot to the specified folder
+    plot_filename = os.path.join(output_folder, 'average_response_time.png')
+    plt.savefig(plot_filename)
+    plt.close()  # Close the current plot to release memory
 
     plt.figure(figsize=(10, 4))
     plt.title('Average Turnaround Time Comparison')
     plt.bar(avg_turnaround_times.keys(), avg_turnaround_times.values(), color='r')
     plt.ylabel('Average Turnaround Time')
     plt.ylim(min(avg_turnaround_times.values()) - 5, max(avg_turnaround_times.values()) + 5)
-    plt.show()
+    
+    # Save the plot to the specified folder
+    plot_filename = os.path.join(output_folder, 'average_turnaround_time.png')
+    plt.savefig(plot_filename)
+    plt.close()  # Close the current plot to release memory
 
 if __name__ == "__main__":
     filename = "out.txt"
+    output_folder = "plots3"  # Specify the folder where you want to save the plots
+    os.makedirs(output_folder, exist_ok=True)  # Create the output folder if it doesn't exist
     data1, data2 = parse_data(filename)
-    plot_gantt_chart(data1)
-    plot_metrics(data2)
+    plot_gantt_chart(data1, output_folder)
+    plot_metrics(data2, output_folder)

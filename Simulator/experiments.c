@@ -578,11 +578,12 @@ void scheduleMLFQ(struct Process *processes, int numProcesses, float TsMLFQ1, fl
 }
 
 
-struct Process generateRandomProcess(int pidNumber) {
+struct Process generateRandomProcess(int pidNumber, float previousArrivalTime) {
     struct Process process;
-    sprintf(process.pid, "J%d", pidNumber);
-    process.arrivalTime = rand() % 10;
-    process.jobTime = -log(1.0 - ((double)rand() / RAND_MAX)) * 25;
+    if(pidNumber < 10) sprintf(process.pid, "J0%d", pidNumber);
+    else sprintf(process.pid, "J%d", pidNumber);
+    process.arrivalTime = previousArrivalTime -log(1.0 - ((double)rand() / RAND_MAX)) * 75;
+    process.jobTime = -log(1.0 - ((double)rand() / RAND_MAX)) * 35;
     return process;
 }
 
@@ -594,47 +595,110 @@ struct Process* generateRandomProcesses(int numProcesses) {
         return NULL;
     }
 
+    float previousArrivalTime = 0;
     for (int i = 0; i < numProcesses; i++) {
-        processes[i] = generateRandomProcess(i + 1);
+        processes[i] = generateRandomProcess(i + 1, previousArrivalTime);
+        previousArrivalTime = processes[i].arrivalTime;
     }
 
     return processes;
 }
 
-void runSchedulers(int numProcesses, float TsRR, float TsMLFQ1, float TsMLFQ2, float TsMLFQ3, float BMLFQ) {
-    struct Process *processes = generateRandomProcesses(numProcesses);
-
-    qsort(processes, numProcesses, sizeof(struct Process), compareProcessesByArrivalTime);
-
+void runSchedulers(int numProcesses, struct Process *processes, float TsRR, float TsMLFQ1, float TsMLFQ2, float TsMLFQ3, float BMLFQ) {
+    printf("\nTsRR = %.3f, TsMLFQ1 = %.3f, TsMLFQ2 = %.3f, TsMLFQ3 = %.3f, BMLFQ = %.3f\n\n", TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
     scheduleFCFS(processes, numProcesses);
     scheduleRR(processes, numProcesses, TsRR);
     scheduleSJF(processes, numProcesses);
     scheduleSRTF(processes, numProcesses);
     scheduleMLFQ(processes, numProcesses, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
-
-    free(processes);
-
 }
 
 int main(int argc, char *argv[]) {
-    int numProcesses = 10;
-    int numExp = 10;
+    int numProcesses0 = 10;
+    int numProcesses = 75;
+    int numProcesses2 = 10000;
+
+    struct Process *processes0 = generateRandomProcesses(numProcesses);
+    qsort(processes0, numProcesses0, sizeof(struct Process), compareProcessesByArrivalTime);
+
+    struct Process *processes = generateRandomProcesses(numProcesses);
+    qsort(processes, numProcesses, sizeof(struct Process), compareProcessesByArrivalTime);
+
+    struct Process *processes2 = generateRandomProcesses(numProcesses2);
+    qsort(processes2, numProcesses2, sizeof(struct Process), compareProcessesByArrivalTime);
+
     FILE *outputFile = freopen("exp.txt", "w", stdout);
+    float TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ;
 
-    for(int i = 1; i <= numExp; i++) {
-        printf("Experiment %d : ", i);
-        if(i%3 == 0) numProcesses *= 10;
-        float TsRR = -log(1.0 - ((double)rand() / RAND_MAX)) * 10;
-        float TsMLFQ1 = -log(1.0 - ((double)rand() / RAND_MAX)) * 10;
-        float TsMLFQ2 = -log(1.0 - ((double)rand() / RAND_MAX)) * 15;
-        float TsMLFQ3 = -log(1.0 - ((double)rand() / RAND_MAX)) * 20;
-        float BMLFQ = -log(1.0 - ((double)rand() / RAND_MAX)) * 25;
-        BMLFQ += max(max(TsMLFQ1, TsMLFQ2), TsMLFQ3);
-        printf("%.3f %.3f %.3f %.3f %.3f\n\n", TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
-        runSchedulers(numProcesses, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
-        printf("\n\n");
-    }
+    printf("Experiment 1:\n");
+    TsRR = 10; TsMLFQ1 = 10; TsMLFQ2 = 15; TsMLFQ3 = 25; BMLFQ = 80;
+    runSchedulers(numProcesses0, processes0, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
 
+    printf("Experiment 2:\n");
+    TsRR = 15; TsMLFQ1 = 15; TsMLFQ2 = 25; TsMLFQ3 = 30; BMLFQ = 100;
+    runSchedulers(numProcesses0, processes0, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    printf("Experiment 3:\n");
+    TsRR = 20; TsMLFQ1 = 20; TsMLFQ2 = 30; TsMLFQ3 = 40; BMLFQ = 150;
+    runSchedulers(numProcesses0, processes0, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    printf("Experiment 4:\n");
+    TsRR = 10; TsMLFQ1 = 10; TsMLFQ2 = 20; TsMLFQ3 = 40; BMLFQ = 100;
+    runSchedulers(numProcesses2, processes2, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    printf("Experiment 5:\n");
+    TsRR = 15; TsMLFQ1 = 15; TsMLFQ2 = 30; TsMLFQ3 = 50; BMLFQ = 150;
+    runSchedulers(numProcesses2, processes2, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    printf("Experiments to test MLFQ approximates SJF if BMLFQ is large enough\n\n");
+    printf("Experiment 6:\n");
+    TsRR = 10; TsMLFQ1 = 10; TsMLFQ2 = 20; TsMLFQ3 = 30; BMLFQ = 150;
+    runSchedulers(numProcesses, processes, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    printf("Experiment 7:\n");
+    TsRR = 10; TsMLFQ1 = 10; TsMLFQ2 = 40; TsMLFQ3 = 80; BMLFQ = 375;
+    runSchedulers(numProcesses, processes, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    printf("Experiment 8:\n");
+    TsRR = 10; TsMLFQ1 = 10; TsMLFQ2 = 60; TsMLFQ3 = 120; BMLFQ = 600;
+    runSchedulers(numProcesses, processes, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    printf("Experiment 9:\n");
+    TsRR = 10; TsMLFQ1 = 10; TsMLFQ2 = 100; TsMLFQ3 = 150; BMLFQ = 750;
+    runSchedulers(numProcesses, processes, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    printf("Experiment 10:\n");
+    TsRR = 10; TsMLFQ1 = 10; TsMLFQ2 = 150; TsMLFQ3 = 200; BMLFQ = 850;
+    runSchedulers(numProcesses, processes, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    printf("Experiments to test MLFQ approximates RR if BMLFQ is too small\n\n");
+    printf("Experiment 11:\n");
+    TsRR = 15; TsMLFQ1 = 15; TsMLFQ2 = 20; TsMLFQ3 = 30; BMLFQ = 60;
+    runSchedulers(numProcesses, processes, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    printf("Experiment 12:\n");
+    TsRR = 15; TsMLFQ1 = 15; TsMLFQ2 = 20; TsMLFQ3 = 30; BMLFQ = 50;
+    runSchedulers(numProcesses, processes, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    printf("Experiment 13:\n");
+    TsRR = 15; TsMLFQ1 = 15; TsMLFQ2 = 20; TsMLFQ3 = 30; BMLFQ = 40;
+    runSchedulers(numProcesses, processes, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
+    printf("\n\n");
+
+    free(processes);
+    free(processes2);
     fclose(outputFile);
 
     return 0;
