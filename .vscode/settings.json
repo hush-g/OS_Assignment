@@ -2,5 +2,14 @@
     "files.associations": {
         "signal.h": "c",
         "history.h": "c"
-    }
+    },
+    "code-runner.saveFileBeforeRun": true,
+    "code-runner.saveAllFilesBeforeRun": false,
+    "code-runner.languageIdToFileExtensionMap": {
+
+        "bat": ".bat",
+        "powershell": ".ps1",
+        "typescript": ".ts"
+    },
+    "editor.wrappingStrategy": "advanced"
 }

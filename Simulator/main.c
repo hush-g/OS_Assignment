@@ -3,6 +3,10 @@
 #include <math.h>
 #include <string.h>
 
+float min(float a, float b) {
+    return (a < b) ? a : b;
+}
+
 float max(float a, float b) {
     return (a > b) ? a : b;
 }
@@ -64,7 +68,7 @@ void addCPUEntry(struct CPUArray *cpuArray, char *pid, float startTime, float en
     } else {
         struct CPU cpuEntry;
         strncpy(cpuEntry.PID, pid, sizeof(cpuEntry.PID) - 1);
-        cpuEntry.PID[sizeof(cpuEntry.PID) - 1] = '\0'; // Ensure null-terminated string
+        cpuEntry.PID[sizeof(cpuEntry.PID) - 1] = '\0';
         cpuEntry.startTime = startTime;
         cpuEntry.endTime = endTime;
 
@@ -74,7 +78,7 @@ void addCPUEntry(struct CPUArray *cpuArray, char *pid, float startTime, float en
 
 void printCPUArray(struct CPUArray *cpuArray) {
     for (int i = 0; i < cpuArray->size; i++) {
-        printf("%s %.2f %.2f ", cpuArray->entries[i].PID, cpuArray->entries[i].startTime, cpuArray->entries[i].endTime);
+        printf("%s %.3f %.3f ", cpuArray->entries[i].PID, cpuArray->entries[i].startTime, cpuArray->entries[i].endTime);
     }
 }
 
@@ -201,11 +205,12 @@ void scheduleFCFS(struct Process *processes, int numProcesses) {
     printf("\n%.3f %.3f\n", avgTurnaroundTime, avgResponseTime);
 }
 
-void scheduleRR(struct Process *processes, int numProcesses, int timeSlice) {
+void scheduleRR(struct Process *processes, int numProcesses, float timeSlice) {
     float currentTime = 0;
     float totalTurnaroundTime = 0;
     float totalResponseTime = 0;
     int completedProcesses = 0;
+    int queueSize = 0;
     
     struct Queue *queue = (struct Queue *)malloc(sizeof(struct Queue));
     
@@ -228,11 +233,16 @@ void scheduleRR(struct Process *processes, int numProcesses, int timeSlice) {
         if(isEmpty(queue)) {
             currentTime = max(currentTime, processes[processIndex].arrivalTime);
         }
-        for(; processIndex < numProcesses && processes[processIndex].arrivalTime <= currentTime + timeSlice; processIndex++) {
+
+        for(; processIndex < numProcesses && processes[processIndex].arrivalTime <= currentTime+timeSlice; processIndex++) {
             enqueue(queue, &processes[processIndex]);
+            queueSize++;
         }
         
         struct Process *currentProcess = dequeue(queue);
+        queueSize--;
+        
+        currentTime = max(currentTime, currentProcess->arrivalTime);
 
         if(currentProcess->jobTime == currentProcess->remainingTime) { // First time running
             currentProcess->responseTime = currentTime - currentProcess->arrivalTime;
@@ -252,6 +262,7 @@ void scheduleRR(struct Process *processes, int numProcesses, int timeSlice) {
             currentProcess->remainingTime -= timeSlice;
             currentTime += timeSlice;
             enqueue(queue, currentProcess);
+            queueSize++;
 
             addCPUEntry(cpuArray, currentProcess->pid, currentTime - timeSlice, currentTime);
             // printf("%s %.2f %.2f ", currentProcess->pid, currentTime - timeSlice, currentTime);
@@ -294,6 +305,7 @@ void scheduleSJF(struct Process *processes, int numProcesses) {
         buildMinHeap(minHeap, heapSize);
 
         struct Process runningProcess = extractMin(minHeap, &heapSize);
+        currentTime = max(currentTime, runningProcess.arrivalTime);
 
         if(runningProcess.jobTime == runningProcess.remainingTime) { // First time running
             runningProcess.responseTime = currentTime - runningProcess.arrivalTime;
@@ -315,7 +327,7 @@ void scheduleSJF(struct Process *processes, int numProcesses) {
     float avgTurnaroundTime = totalTurnaroundTime / numProcesses;
     float avgResponseTime = totalResponseTime / numProcesses;
 
-    printf("\n%.2f %.2f\n", avgTurnaroundTime, avgResponseTime);
+    printf("\n%.3f %.3f\n", avgTurnaroundTime, avgResponseTime);
 }
 
 
@@ -362,6 +374,7 @@ void scheduleSRTF(struct Process *processes, int numProcesses) {
         }
 
         struct  Process runningProcess = extractMin(minHeap, &heapSize);
+        currentTime = max(currentTime, runningProcess.arrivalTime);
 
         if(runningProcess.jobTime == runningProcess.remainingTime) { // First time running
             runningProcess.responseTime = currentTime - runningProcess.arrivalTime;
@@ -403,7 +416,7 @@ void scheduleSRTF(struct Process *processes, int numProcesses) {
     float avgTurnaroundTime = totalTurnaroundTime / numProcesses;
     float avgResponseTime = totalResponseTime / numProcesses;
 
-    printf("\n%.2f %.2f\n", avgTurnaroundTime, avgResponseTime); 
+    printf("\n%.3f %.3f\n", avgTurnaroundTime, avgResponseTime); 
 }
 
 
@@ -441,15 +454,22 @@ void scheduleMLFQ(struct Process *processes, int numProcesses, float TsMLFQ1, fl
         processes[i].currentSwitchRunTime = 0;
     }
 
-    int k = 0;
     while (completedProcesses < numProcesses) {
 
-        for(; processIndex < numProcesses && processes[processIndex].arrivalTime <= currentTime; processIndex++) {
+        for(; processIndex < numProcesses && processes[processIndex].arrivalTime <= currentTime+TsMLFQ1; processIndex++) {
             enqueue(queue1, &processes[processIndex]);
         }
-        if (!isEmpty(queue1)) {
-            struct Process *currentProcess = queue1->front->data;
 
+        int flag = 0;
+        if(!isEmpty(queue1)) {
+            float t = queue1->front->data->arrivalTime;
+            if(currentTime < t && (!isEmpty(queue2) || !isEmpty(queue3))) {
+                flag = 1;
+            }
+        }
+        if (!isEmpty(queue1) && !flag) {
+            struct Process *currentProcess = queue1->front->data;
+            currentTime = max(currentTime, currentProcess->arrivalTime);
             if(currentProcess->remainingTime == currentProcess->jobTime) {
                 currentProcess->responseTime = currentTime - currentProcess->arrivalTime;
                 totalResponseTime += currentProcess->responseTime;
@@ -534,12 +554,12 @@ void scheduleMLFQ(struct Process *processes, int numProcesses, float TsMLFQ1, fl
         }
         if(currentTime >= nextBoostTime) { // Boosting
             nextBoostTime += BMLFQ;
-            while(!isEmpty(queue2)) {
-                struct Process *currentProcess = dequeue(queue2);
-                enqueue(queue1, currentProcess);
-            }
             while(!isEmpty(queue3)) {
                 struct Process *currentProcess = dequeue(queue3);
+                enqueue(queue1, currentProcess);
+            }
+            while(!isEmpty(queue2)) {
+                struct Process *currentProcess = dequeue(queue2);
                 enqueue(queue1, currentProcess);
             }
         }
@@ -551,7 +571,7 @@ void scheduleMLFQ(struct Process *processes, int numProcesses, float TsMLFQ1, fl
     float avgTurnaroundTime = totalTurnaroundTime / numProcesses;
     float avgResponseTime = totalResponseTime / numProcesses;
 
-    printf("\n%.2f %.2f\n", avgTurnaroundTime, avgResponseTime); 
+    printf("\n%.3f %.3f\n", avgTurnaroundTime, avgResponseTime); 
 }
 
 int main(int argc, char *argv[]) {
