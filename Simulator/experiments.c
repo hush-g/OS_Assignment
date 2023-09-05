@@ -3,9 +3,6 @@
 #include <math.h>
 #include <string.h>
 
-int MAX_VALUE_FOR_JOBTIME;
-int MAX_VALUE_FOR_ARRIVALTIME;
-
 float min(float a, float b) {
     return (a < b) ? a : b;
 }
@@ -697,6 +694,7 @@ int main(int argc, char *argv[]) {
     runSchedulers(numProcesses, processes, TsRR, TsMLFQ1, TsMLFQ2, TsMLFQ3, BMLFQ);
     printf("\n\n");
 
+    free(processes0);
     free(processes);
     free(processes2);
     fclose(outputFile);

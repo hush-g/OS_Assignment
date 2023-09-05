@@ -107,7 +107,7 @@ def plot_metrics(data, output_folder):
 
 if __name__ == "__main__":
     filename = "out.txt"
-    output_folder = "plots3"  # Specify the folder where you want to save the plots
+    output_folder = "plots11"  # Specify the folder where you want to save the plots
     os.makedirs(output_folder, exist_ok=True)  # Create the output folder if it doesn't exist
     data1, data2 = parse_data(filename)
     plot_gantt_chart(data1, output_folder)
