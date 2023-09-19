@@ -24,6 +24,7 @@ int main() {
         printf("my_calloc for char array: %s\n", charArray);
         info();
         my_free(charArray);
+        printf("my_calloc batman for char array: %s\n", charArray);
         info();
     } else {
         printf("my_calloc failed\n");
@@ -40,6 +41,56 @@ int main() {
     } else {
         printf("my_malloc failed\n");
     }
+
+    // char *ptr = (char *)my_malloc(sizeof(char));
+
+	// if (ptr == NULL) {
+	// 	printf("Memory Error!\n");
+	// } else {
+	// 	*ptr = 'S';
+	// 	printf("%c", *ptr);
+	// }
+
+    // int n;
+	// scanf("%d", &n);
+
+	// // Dynamically allocated array of size 10 using calloc()
+	// // array elements are initialized with 0
+	// // arr stores the base address of the memory block
+	// char *str = (char *)my_calloc(n, sizeof(char));
+
+	// if (str == NULL) {
+	// 	printf("Memory Error!\n");
+	// } else {
+	// 	// initializing array with char variables
+	// 	for (int i = 0; i < n; i++)	{
+	// 		char ch;
+	// 		scanf("%c", &ch);
+	// 		*(str + i) = ch;
+	// 	}
+	// 	// printing array using pointer
+	// 	for (int i = 0; i < n; i++) {
+	// 		printf("%c", *(str + i));
+	// 	}
+	// }
+
+    // dynamically allocated variable, sizeof(char) = 1 byte
+	// char *ptr = (char *)my_calloc(10,sizeof(char));
+
+	// if (ptr == NULL) {
+	// 	printf("Memory Error!\n");
+	// } else {
+	// 	*ptr = 'asdfghjklz';
+	// 	printf("%s", *ptr);
+	// }
+
+	// // deallocating memory pointed by ptr
+	// free(ptr);
+
+	// printf("\n%c ", *ptr);
+
+	// assign NULL to avoid garbage values
+	// ptr = NULL;
 
     return 0;
 }

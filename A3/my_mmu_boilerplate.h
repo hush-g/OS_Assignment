@@ -113,10 +113,14 @@ void combine(){
 
 // Function to release memory allocated using my_malloc and my_calloc
 void my_free(void* ptr) {
+    if (ptr == NULL){
+        return;
+    }
     // Your implementation of my_free goes here
     struct memoryBlockHeader* curr = (struct memoryBlockHeader* )ptr;
     curr-=1;
     curr->free = true;
+    ptr = NULL;
     combine();
 }
 
