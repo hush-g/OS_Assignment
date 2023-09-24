@@ -125,7 +125,6 @@ void my_free(void* ptr) {
 }
 
 void info() {
-    // printf("\n");
     size_t total = 0;
     struct memoryBlockHeader * curr = freeListHead;
     while( curr != NULL) {
@@ -136,9 +135,11 @@ void info() {
     curr = freeListHead;
     if (curr != NULL){
         fprintf(stderr, "The structure of the free list of heap is: \n");
+        int i = 1;
         while(curr != NULL){
-            fprintf(stderr, "Memory block of %zu size and occupied %s \n", curr -> size, !curr -> free ? "true":"false");
+            fprintf(stderr, "Memory block no. %d of %zu size and occupied: %s \n", i,  curr -> size, !curr -> free ? "true":"false");
             curr = curr -> nextBlock;
+            i++;
         }
     }
 }
